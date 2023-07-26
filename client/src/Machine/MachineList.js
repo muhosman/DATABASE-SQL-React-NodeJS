@@ -7,7 +7,7 @@ const MachineList = () => {
 
   useEffect(() => {
     axios
-      .get("http://localhost:3306/machines") // Tam URL'yi buraya girin
+      .get("http://localhost:8800/machines") // Tam URL'yi buraya girin
       .then((response) => {
         setData(response.data);
       })
@@ -19,18 +19,34 @@ const MachineList = () => {
 
   return (
     <div className=" p-4">
-      <h2 className=" border-b-2 mb-4">Machine List</h2>
+      <h2 className=" border-b-2 mb-4 text-xl font-bold ">Machine List</h2>
       {error !== "" ? (
         <div>{error}</div>
       ) : (
-        <ul>
-          {data.map((data) => (
-            <li key={data.machine_id}>
-              {data.machine_id} - {data.quote}- {data.counter} - {data.address}-{" "}
-              {data.product_id} - {data.customer_id}
-            </li>
-          ))}
-        </ul>
+        <table className=" w-full">
+          <thead>
+            <tr>
+              <th className=" text-center">Machine ID</th>
+              <th className=" text-center">Quote</th>
+              <th className=" text-center">Counter</th>
+              <th className=" text-center">Address</th>
+              <th className=" text-center">Product ID</th>
+              <th className=" text-center">Customer ID</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((data) => (
+              <tr key={data.product_id}>
+                <td className=" text-center">{data.machine_id}</td>
+                <td className=" text-center">{data.quote}</td>
+                <td className=" text-center">{data.counter}</td>
+                <td className=" text-center">{data.address}</td>
+                <td className=" text-center">{data.product_id}</td>
+                <td className=" text-center">{data.customer_id}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );

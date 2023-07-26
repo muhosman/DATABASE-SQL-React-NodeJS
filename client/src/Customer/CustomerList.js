@@ -7,7 +7,7 @@ const CustomerList = () => {
 
   useEffect(() => {
     axios
-      .get("http://localhost:3306/customers") // Tam URL'yi buraya girin
+      .get("http://localhost:8800/customers") // Tam URL'yi buraya girin
       .then((response) => {
         setCustomers(response.data);
       })
@@ -19,18 +19,30 @@ const CustomerList = () => {
 
   return (
     <div className=" p-4">
-      <h2 className=" border-b-2 mb-4">Customer List</h2>
+      <h2 className=" border-b-2 mb-4 text-xl font-bold ">Customer List</h2>
       {error !== "" ? (
         <div>{error}</div>
       ) : (
-        <ul>
-          {customers.map((customer) => (
-            <li key={customer.customer_id}>
-              {customer.customer_id} - {customer.name} - {customer.address} -{" "}
-              {customer.phone}
-            </li>
-          ))}
-        </ul>
+        <table className=" w-full">
+          <thead>
+            <tr>
+              <th className=" text-center">Customer ID</th>
+              <th className=" text-center">Name</th>
+              <th className=" text-center">Address</th>
+              <th className=" text-center">Phone</th>
+            </tr>
+          </thead>
+          <tbody>
+            {customers.map((customer) => (
+              <tr key={customer.customer_id}>
+                <td className=" text-center">{customer.customer_id}</td>
+                <td className=" text-center">{customer.name}</td>
+                <td className=" text-center">{customer.address}</td>
+                <td className=" text-center">{customer.phone}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );

@@ -16,6 +16,7 @@ function App() {
   const [select, setSelect] = useState(0);
   const [submit, setSubmit] = useState(false);
 
+  const [deleteCustomer, setDeleteCustomer] = useState(false);
   const [getCustomer, setGetCustomer] = useState(false);
   const [addCustomer, setAddCustomer] = useState(false);
   const [getCustomerConsumption, setGetCustomerConsumption] = useState(false);
@@ -33,6 +34,7 @@ function App() {
   const [getConsumption, setGetConsumpiton] = useState(false);
   const [addConsumpiton, setAddConsumption] = useState("");
 
+  const [deleteProduct, setDeleteProduct] = useState(false);
   const [getProduct, setGetProduct] = useState(false);
   const [addProduct, setAddProduct] = useState("");
   const [productId, setProductId] = useState("");
@@ -138,6 +140,12 @@ function App() {
     if (event.target.id !== "button-getMachineConsumptions") {
       setGetMachineConsumptions(false);
     }
+    if (event.target.id !== "button-deleteCustomer") {
+      setDeleteCustomer(false);
+    }
+    if (event.target.id !== "button-deleteProduct") {
+      setDeleteProduct(false);
+    }
   };
 
   const handleAddCustomerSubmit = () => {
@@ -148,7 +156,7 @@ function App() {
     };
 
     axios
-      .post("http://localhost:3306/customers", newCustomer)
+      .post("http://localhost:8800/customers", newCustomer)
       .then((response) => {
         setAddConsumption(false);
         setCustomerName("");
@@ -164,6 +172,20 @@ function App() {
       });
   };
 
+  const handleDeleteCustomer = () => {
+    axios
+      .delete(`http://localhost:8800/customers/${customerId}`)
+      .then((response) => {
+        // Müşteri başarıyla silindi
+        console.log("Customer deleted successfully");
+        // İşlemleri gerçekleştirme veya state güncellemeleri
+      })
+      .catch((error) => {
+        console.error("Error deleting customer:", error);
+        // Hata durumunda gerekli işlemler veya hata mesajını gösterme
+      });
+  };
+
   const handleAddBillSubmit = () => {
     const newBill = {
       customer_id: customerId,
@@ -172,7 +194,7 @@ function App() {
     };
 
     axios
-      .post("http://localhost:3306/bills", newBill)
+      .post("http://localhost:8800/bills", newBill)
       .then((response) => {
         setAddBill(false);
         setProductId("");
@@ -198,7 +220,7 @@ function App() {
     };
 
     axios
-      .post("http://localhost:3306/machines", newBill)
+      .post("http://localhost:8800/machines", newBill)
       .then((response) => {
         setAddBill(false);
         setProductId("");
@@ -225,7 +247,7 @@ function App() {
     };
 
     axios
-      .post("http://localhost:3306/machines/assign", newBill)
+      .post("http://localhost:8800/machines/assign", newBill)
       .then((response) => {
         setAddBill(false);
         setMachineId("");
@@ -240,27 +262,21 @@ function App() {
   };
 
   const handleAddConsumptionSubmit = () => {
-    const newBill = {
+    const newConsume = {
       machine_id: machineId,
-      product_id: productId,
       quantity: quantity,
-      customer_id: customerId,
     };
 
     axios
-      .post("http://localhost:3306/consumptions", newBill)
+      .post("http://localhost:8800/consumptions", newConsume)
       .then((response) => {
         setAddConsumption(false);
         setMachineId("");
-        setProductId("");
-        setCustomerId("");
         setQuantity("");
       })
       .catch((error) => {
         setAddConsumption(false);
         setMachineId("");
-        setProductId("");
-        setCustomerId("");
         setQuantity("");
         console.error("Error creating bill:", error);
       });
@@ -274,7 +290,7 @@ function App() {
     };
 
     axios
-      .post("http://localhost:3306/products", newBill)
+      .post("http://localhost:8800/products", newBill)
       .then((response) => {
         setAddProduct(false);
         setProductName("");
@@ -287,6 +303,20 @@ function App() {
         setProductPrice("");
         setProductDescription("");
         console.error("Error creating bill:", error);
+      });
+  };
+
+  const handleDeleteProduct = () => {
+    axios
+      .delete(`http://localhost:8800/products/${productId}`)
+      .then((response) => {
+        // Product deleted successfully
+        console.log("Product deleted:", response.data);
+        // Perform any necessary actions after deleting the product
+      })
+      .catch((error) => {
+        console.error("Error deleting product:", error);
+        // Handle the error appropriately
       });
   };
 
@@ -382,6 +412,43 @@ function App() {
                 <div className="text-white font-bold" id="button-getCustomer">
                   Get Customer
                 </div>
+              </div>
+              <div
+                onClick={() => setDeleteCustomer(true)}
+                id="button-deleteCustomer"
+                className={` w-[20rem] h-[20rem] p-4 bg-[#262A56] 
+            flex items-center justify-center rounded-xl ${
+              deleteCustomer ? "" : " cursor-pointer hover:opacity-40"
+            } transition-all duration-300 transform`}
+              >
+                {deleteCustomer ? (
+                  <div
+                    className=" flex flex-col justify-between items-center rounded-xl bg-white p-4 w-full h-full"
+                    id="button-deleteCustomer"
+                  >
+                    <TextField
+                      id="button-deleteCustomer"
+                      label="Customer ID"
+                      variant="outlined"
+                      value={customerId}
+                      onChange={handleChange}
+                    />
+                    <button
+                      id="button-deleteCustomer"
+                      onClick={handleDeleteCustomer}
+                      className=" p-2 bg-[#FF8400] text-white rounded-lg"
+                    >
+                      Submit
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className="text-white font-bold"
+                    id="button-deleteCustomer"
+                  >
+                    Delete Customer
+                  </div>
+                )}
               </div>
               <div
                 onClick={() => setAddCustomer(true)}
@@ -646,20 +713,6 @@ function App() {
                   >
                     <TextField
                       id="button-addConsumption"
-                      label="Customer ID"
-                      variant="outlined"
-                      value={customerId}
-                      onChange={handleChange}
-                    />
-                    <TextField
-                      id="button-addConsumption"
-                      label="Product ID"
-                      variant="outlined"
-                      value={productId}
-                      onChange={handleChangeProductId}
-                    />
-                    <TextField
-                      id="button-addConsumption"
                       label="Machine ID"
                       variant="outlined"
                       value={machineId}
@@ -750,6 +803,44 @@ function App() {
                 ) : (
                   <div className="text-white font-bold" id="button-addProduct">
                     Add Product
+                  </div>
+                )}
+              </div>
+              <div
+                onClick={() => setDeleteProduct(true)}
+                id="button-deleteProduct"
+                className={` w-[20rem] h-[20rem] p-4 bg-[#262A56] 
+            flex items-center justify-center rounded-xl ${
+              deleteProduct ? "" : " cursor-pointer hover:opacity-40"
+            } transition-all duration-300 transform`}
+              >
+                {deleteProduct ? (
+                  <div
+                    className=" flex flex-col justify-between items-center rounded-xl bg-white p-4 w-full h-full"
+                    id="button-deleteProduct"
+                  >
+                    <TextField
+                      id="button-deleteProduct"
+                      label="Product ID"
+                      variant="outlined"
+                      value={productId}
+                      onChange={handleChangeProductId}
+                    />
+
+                    <button
+                      id="button-deleteProduct"
+                      onClick={handleDeleteProduct}
+                      className=" p-2 bg-[#FF8400] text-white rounded-lg"
+                    >
+                      Submit
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className="text-white font-bold"
+                    id="button-deleteProduct"
+                  >
+                    Delete Product
                   </div>
                 )}
               </div>

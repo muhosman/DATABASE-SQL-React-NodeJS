@@ -4,11 +4,10 @@ const mysql = require("mysql");
 const app = express();
 const cors = require("cors");
 
-const port = 3306; // Replace with the desired port number
+const port = 8800; // Replace with the desired port number
 
 const db = mysql.createConnection({
   host: "localhost",
-  port: port,
   user: "root",
   password: "66894761",
   database: "machinemanagement",
@@ -17,15 +16,6 @@ const db = mysql.createConnection({
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cors());
-
-db.connect(function (err) {
-  if (err) {
-    console.error("Database connection failed: " + err.stack);
-    return;
-  }
-
-  console.log("Connected to the database.");
-});
 
 app.post("/customers", (req, res) => {
   const { name, address, phone } = req.body;
@@ -37,19 +27,13 @@ app.post("/customers", (req, res) => {
       res.sendStatus(500);
       return;
     }
-    console.log(res);
 
     res.json({ customer_id: result.insertId });
   });
 });
 
-app.get("/", (req, res) => {
-  return res.json("Welcome");
-});
 app.get("/customers", (req, res) => {
-  const sql = `SELECT * FROM machinemanagement.Customer`;
-
-  console.log(sql);
+  const sql = `SELECT * FROM Customer`;
 
   db.query(sql, (err, results) => {
     if (err) {
@@ -57,15 +41,68 @@ app.get("/customers", (req, res) => {
       res.sendStatus(500);
       return;
     }
-    console.log(res);
     res.json(results);
   });
+});
+
+app.delete("/customers/:customerId", (req, res) => {
+  const customerId = req.params.customerId;
+
+  const deleteCustomerSql = "DELETE FROM Customer WHERE customer_id = ?";
+  const deleteCustomerTriggerSql = "CALL after_delete_customer(?)";
+
+  db.beginTransaction((err) => {
+    if (err) {
+      console.error("Error starting transaction: ", err);
+      res.sendStatus(500);
+      return;
+    }
+    db.query(deleteCustomerTriggerSql, [customerId], (err) => {
+      if (err) {
+        console.error("Error triggering after_delete_customer: ", err);
+        db.rollback(() => {
+          res.sendStatus(500);
+        });
+        return;
+      }
+
+      db.query(deleteCustomerSql, [customerId], (err, result) => {
+        if (err) {
+          console.error("Error deleting customer: ", err);
+          db.rollback(() => {
+            res.sendStatus(500);
+          });
+          return;
+        }
+
+        db.commit((err) => {
+          if (err) {
+            console.error("Error committing transaction: ", err);
+            db.rollback(() => {
+              res.sendStatus(500);
+            });
+            return;
+          }
+
+          res.sendStatus(200);
+        });
+      });
+    });
+  });
+});
+
+app.get("/", (req, res) => {
+  return res.json("Welcome");
+});
+
+app.listen(port, () => {
+  console.log("Connnected to database .");
 });
 
 app.get("/customer/:customerID/consumptions", (req, res) => {
   const customerID = req.params.customerID;
 
-  const sql = `SELECT Consumption.quantity, Product.name
+  const sql = `SELECT Consumption.quantity,Consumption.consumption_id,Consumption.product_id,Consumption.consumption_date,Consumption.machine_id, Product.name
                  FROM Consumption
                  JOIN Product ON Consumption.product_id = Product.product_id
                  WHERE Consumption.customer_id = ?`;
@@ -132,14 +169,14 @@ app.get("/bills", (req, res) => {
 
 // Fatura oluşturma
 app.post("/bills", (req, res) => {
-  const { customer_id, product_id, total_amount, date } = req.body;
+  const { customer_id, product_id, total_amount, bill_date } = req.body;
 
-  const sql = `INSERT INTO Bill (customer_id, product_id, total_amount, date) 
+  const sql = `INSERT INTO Bill (customer_id, product_id, total_amount, bill_date) 
                VALUES (?, ?, ?, NOW())`;
 
   db.query(
     sql,
-    [customer_id, product_id, total_amount, date],
+    [customer_id, product_id, total_amount, bill_date],
     (err, result) => {
       if (err) {
         console.error("Error creating bill: ", err);
@@ -167,16 +204,17 @@ app.get("/consumptions", (req, res) => {
   });
 });
 
-// Tüketim kaydı oluşturma
 app.post("/consumptions", (req, res) => {
-  const { machine_id, product_id, quantity, customer_id } = req.body;
+  const { machine_id, quantity } = req.body;
 
   const sql = `INSERT INTO Consumption (machine_id, product_id, quantity, customer_id, consumption_date) 
-               VALUES (?, ?, ?, ?, NOW())`;
+               SELECT machine_id, product_id, ?, customer_id, NOW()
+               FROM Machine
+               WHERE machine_id = ?`;
 
   const checkMachineQuotaSql = `SELECT quote, counter 
                                 FROM Machine 
-                                WHERE machine_id = ? AND product_id = ?`;
+                                WHERE machine_id = ?`;
 
   const updateMachineQuotaSql = `UPDATE Machine 
                                  SET quote = quote - ?, counter = counter + ? 
@@ -189,7 +227,7 @@ app.post("/consumptions", (req, res) => {
       return;
     }
 
-    db.query(checkMachineQuotaSql, [machine_id, product_id], (err, results) => {
+    db.query(checkMachineQuotaSql, [machine_id], (err, results) => {
       if (err) {
         console.error("Error checking machine quota: ", err);
         db.rollback(() => {
@@ -206,45 +244,49 @@ app.post("/consumptions", (req, res) => {
         return;
       }
 
-      db.query(
-        sql,
-        [machine_id, product_id, quantity, customer_id],
-        (err, result) => {
-          if (err) {
-            console.error("Error creating consumption: ", err);
-            db.rollback(() => {
-              res.sendStatus(500);
-            });
-            return;
-          }
+      db.query(sql, [quantity, machine_id], (err, result) => {
+        if (err) {
+          console.error("Error creating consumption: ", err);
+          db.rollback(() => {
+            res.sendStatus(500);
+          });
+          return;
+        }
 
-          db.query(
-            updateMachineQuotaSql,
-            [quantity, quantity, machine_id],
-            (err, result) => {
+        if (result.affectedRows === 0) {
+          // Makine bulunamadı
+          db.rollback(() => {
+            res.status(400).json({ error: "Machine not found" });
+          });
+          return;
+        }
+
+        db.query(
+          updateMachineQuotaSql,
+          [quantity, quantity, machine_id],
+          (err, result) => {
+            if (err) {
+              console.error("Error updating machine quota: ", err);
+              db.rollback(() => {
+                res.sendStatus(500);
+              });
+              return;
+            }
+
+            db.commit((err) => {
               if (err) {
-                console.error("Error updating machine quota: ", err);
+                console.error("Error committing transaction: ", err);
                 db.rollback(() => {
                   res.sendStatus(500);
                 });
                 return;
               }
 
-              db.commit((err) => {
-                if (err) {
-                  console.error("Error committing transaction: ", err);
-                  db.rollback(() => {
-                    res.sendStatus(500);
-                  });
-                  return;
-                }
-
-                res.json({ consumption_id: result.insertId });
-              });
-            }
-          );
-        }
-      );
+              res.json({ consumption_id: result.insertId });
+            });
+          }
+        );
+      });
     });
   });
 });
@@ -263,6 +305,32 @@ app.post("/products", (req, res) => {
     }
 
     res.json({ product_id: result.insertId });
+  });
+});
+
+app.delete("/products/:productId", (req, res) => {
+  const productId = req.params.productId;
+
+  // Delete associated machines
+  const deleteMachinesSql = "DELETE FROM Machine WHERE product_id = ?";
+  db.query(deleteMachinesSql, [productId], (err, result) => {
+    if (err) {
+      console.error("Error deleting associated machines: ", err);
+      res.sendStatus(500);
+      return;
+    }
+
+    // Delete product
+    const deleteProductSql = "DELETE FROM Product WHERE product_id = ?";
+    db.query(deleteProductSql, [productId], (err, result) => {
+      if (err) {
+        console.error("Error deleting product: ", err);
+        res.sendStatus(500);
+        return;
+      }
+
+      res.sendStatus(200);
+    });
   });
 });
 
@@ -298,14 +366,13 @@ app.get("/machine/:machineID/consumptions", (req, res) => {
   });
 });
 
-// Belirli bir makinenin ürünlerini listele
 app.get("/machine/:machineID/products", (req, res) => {
   const machineID = req.params.machineID;
 
-  const sql = `SELECT Product.* FROM Machine
-                 JOIN Consumption ON Machine.machine_id = Consumption.machine_id
-                 JOIN Product ON Consumption.product_id = Product.product_id
-                 WHERE Machine.machine_id = ?`;
+  const sql = `SELECT Product.*
+               FROM Machine
+               JOIN Product ON Machine.product_id = Product.product_id
+               WHERE Machine.machine_id = ?`;
 
   db.query(sql, [machineID], (err, results) => {
     if (err) {

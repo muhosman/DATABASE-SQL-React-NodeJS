@@ -8,7 +8,7 @@ const MachineConsumptionList = ({ machineID, submit, setSubmit }) => {
   useEffect(() => {
     if (submit)
       axios
-        .get(`http://localhost:3306/machine/${machineID}/consumptions`) // Makine kimliğini URL'ye ekleyin
+        .get(`http://localhost:8800/machine/${machineID}/consumptions`) // Makine kimliğini URL'ye ekleyin
         .then((response) => {
           setData(response.data);
           setSubmit(false);
@@ -22,20 +22,35 @@ const MachineConsumptionList = ({ machineID, submit, setSubmit }) => {
   }, [machineID, submit]);
 
   return (
-    <div className="p-4">
-      <h2 className="border-b-2 mb-4">Machine List</h2>
+    <div className=" p-4">
+      <h2 className=" border-b-2 mb-4 text-xl font-bold ">
+        Machine Consumption List
+      </h2>
       {error !== "" ? (
         <div>{error}</div>
       ) : (
-        <ul>
-          {data.map((consumption) => (
-            <li key={consumption.customer_id}>
-              {consumption.machine_id} - {consumption.customer_id} -{" "}
-              {consumption.product_id} - {consumption.consumption_id} -{" "}
-              {consumption.quantity}
-            </li>
-          ))}
-        </ul>
+        <table className=" w-full">
+          <thead>
+            <tr>
+              <th className=" text-center">Machine ID</th>
+              <th className=" text-center">Consumption ID</th>
+              <th className=" text-center">Customer ID</th>
+              <th className=" text-center">Quantity</th>{" "}
+              <th className=" text-center">Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((data) => (
+              <tr key={data.machine_id}>
+                <td className=" text-center">{data.machine_id}</td>
+                <td className=" text-center">{data.consumption_id}</td>
+                <td className=" text-center">{data.customer_id}</td>
+                <td className=" text-center">{data.quantity}</td>
+                <td className=" text-center">{data.consumption_date}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );
